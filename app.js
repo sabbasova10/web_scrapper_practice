@@ -1,6 +1,7 @@
 require("dotenv").config();
 const cheerio = require("cheerio");
 const fs = require("fs");
+const z = require("zod");
 
 async function getHTML(url) {
     const fileName = url.pathname.replace(/\//g, "_") || "index.html";
@@ -112,7 +113,7 @@ async function main() {
         pageUrl = findNextPage(currentCatalogUrl, catalogHtml);
     }
 
-    fs.writeFileSync("books.json", JSON.stringify(allRecords, null, 2));
+    fs.writeFileSync("output/books.json", JSON.stringify(allRecords, null, 2));
 
     if (allRecords.length > 0) {
         console.log(JSON.stringify(allRecords[0], null, 2));
