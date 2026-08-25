@@ -30,6 +30,7 @@ async function dataFetching(url){
 }
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const backoff = (attempt) => sleep(1000 * Math.pow(2, attempt));
 
 async function getHTML(url) {
     const fileName = url.pathname.replace(/\//g, "_") || "index.html";
@@ -37,11 +38,18 @@ async function getHTML(url) {
 
     if (!fs.existsSync(file)) {
         try {
+            let i = 1;
             let response = await dataFetching(url);
             if((response.status >= 500 && response.status < 600) || response.status == 429){
-                await sleep(5000);
-                response = await dataFetching(url);
-                if (!response.ok) return null;
+                while(i < 5 && !response.ok){
+                    await backoff(i);
+                    response = await dataFetching(url);
+                    i++;
+                }
+                if (!response.ok){
+                    metaData.push({"Retry attempts": i});
+                    return null;
+                } 
             }
             else if (!response.ok){
                 console.log(`Status code: ${response.status}`);
@@ -49,7 +57,7 @@ async function getHTML(url) {
             }
 
             const result = await response.text();
-            fs.writeFileSync(file, result);
+            fs.appendFileSync(file, result);
             return result;
             
         } catch (error) {
@@ -117,7 +125,7 @@ function extractBookDetail(html, detailUrl, sourcePageUrl) {
         price_gbp: priceGbp || 0,
         availability_text: availabilityText,
         available_books: availableBooks|| 0,
-        rating_text: ratingText || null,
+        rating_text: ratingText,
         description: description,
         source_page: sourcePageUrl.href,
         fetched_at: new Date().toISOString()
@@ -128,13 +136,19 @@ async function main() {
     let pageUrl = new URL(process.env.URL);
     const ValidRecordsMap = new Map();
     const errorRecords = [];
+    let pageValid = 3;
+    let pageInvalid = 0;
 
     for (let i = 0; i < 3; i++) {
         if (!pageUrl) break;
 
         const currentCatalogUrl = pageUrl;
         const catalogHtml = await getHTML(currentCatalogUrl);
-        if (!catalogHtml) continue;
+        if (!catalogHtml){
+            pageInvalid++;
+            pageValid--;
+            continue;
+        };
 
         const bookUrls = extractBookLinks(catalogHtml, currentCatalogUrl);
 
@@ -164,8 +178,8 @@ async function main() {
 
     const finalBooks = Array.from(ValidRecordsMap.values());
 
-    fs.writeFileSync("output/books.json", JSON.stringify(finalBooks, null, 2));
-    fs.writeFileSync("output/errors.json", JSON.stringify(errorRecords, null, 2));
+    fs.appendFileSync("output/books.json", JSON.stringify(finalBooks, null, 2));
+    fs.appendFileSync("output/errors.json", JSON.stringify(errorRecords, null, 2));
 
     if (finalBooks.length > 0) {
         console.log(JSON.stringify(finalBooks[0], null, 2));
@@ -174,11 +188,13 @@ async function main() {
     console.log(`failed_pages=${errorRecords.length}`);
 
     metaData.push({
-        "detail_pages": finalBooks.length,
-        "failed_pages": errorRecords.length
+        "detail_records": finalBooks.length,
+        "failed_records": errorRecords.length,
+        "fetched_pages": pageValid,
+        "failed_pages": pageInvalid
     });
 
-    fs.writeFileSync("output/report.json", JSON.stringify(metaData, null, 2));
+    fs.appendFileSync("output/report.json", JSON.stringify(metaData, null, 2));
 }
 
 
