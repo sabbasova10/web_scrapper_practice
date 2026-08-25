@@ -57,6 +57,7 @@ async function getHTML(url) {
             }
 
             const result = await response.text();
+            if(!fs.existsSync("cache/")) fs.mkdirSync("cache/");
             fs.appendFileSync(file, result);
             return result;
             
@@ -178,14 +179,16 @@ async function main() {
 
     const finalBooks = Array.from(ValidRecordsMap.values());
 
+
+    if(!fs.existsSync("output/")) fs.mkdirSync("output/");
     fs.appendFileSync("output/books.json", JSON.stringify(finalBooks, null, 2));
     fs.appendFileSync("output/errors.json", JSON.stringify(errorRecords, null, 2));
 
     if (finalBooks.length > 0) {
         console.log(JSON.stringify(finalBooks[0], null, 2));
     }
-    console.log(`detail_pages=${finalBooks.length}`);
-    console.log(`failed_pages=${errorRecords.length}`);
+    console.log(`detail_books=${finalBooks.length}`);
+    console.log(`failed_books=${errorRecords.length}`);
 
     metaData.push({
         "detail_records": finalBooks.length,

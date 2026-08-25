@@ -12,4 +12,18 @@
     "fetched_pages": 3,
     "failed_pages": 0
   }
+][
+  {
+    "detail_records": 60,
+    "failed_records": 0,
+    "fetched_pages": 3,
+    "failed_pages": 0
+  }
+][
+  {
+    "detail_records": 0,
+    "failed_records": 0,
+    "fetched_pages": 0,
+    "failed_pages": 3
+  }
 ]
